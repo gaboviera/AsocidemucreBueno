@@ -1,0 +1,163 @@
+{% extends 'base.html' %} <!-- Heredamos la estructura base (menú, pie de página, estilos) -->
+
+{% block title %}Panel de Control - Asocidemucre{% endblock %} <!-- Título de la pestaña del navegador -->
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5 px-4">
+    
+    <!-- CABECERA DEL PANEL DE CONTROL (DASHBOARD) -->
+    <div class="d-flex justify-content-between align-items-end mb-4 border-bottom pb-3">
+        <div>
+            <h2 class="fw-bold mb-0 text-dark">Panel de Control</h2>
+            <!-- Mostramos el nombre del doctor o usuario logueado desde la sesión -->
+            <p class="text-muted mb-0 fs-5 mt-1">Ginecología Asocidemucre - Dr/a. <span class="fw-bold">{{ session.nombre }}</span></p>
+        </div>
+        <div class="text-secondary fs-5">
+            <!-- Formato de la fecha actual inyectado desde Python (Día, Número de mes, Año) -->
+            <i class="bi bi-calendar3"></i> {{ fecha_formateada }}
+        </div>
+    </div>
+
+    <!-- TARJETAS DE ESTADÍSTICAS (WIDGETS DE COLORES) -->
+    <div class="row mb-5 g-4">
+        <!-- Tarjeta Azul: Total de pacientes registradas históricamente -->
+        <div class="col-md-4 anim-fade-in-up anim-delay-1">
+            <div class="card card-hover text-white border-0 shadow-sm rounded-3" style="background-color: #1a73e8; height: 100%;">
+                <div class="card-body p-4">
+                    <h6 class="card-title fw-bold text-uppercase mb-3 opacity-75"><i class="bi bi-people-fill"></i> Total Pacientes</h6>
+                    <h1 class="display-3 fw-bold mb-0">{{ total_pacientes }}</h1>
+                    <p class="mb-0 mt-2 fs-6">Registradas en el sistema</p>
+                </div>
+            </div>
+        </div>
+        <!-- Tarjeta Verde: Resumen de citas para el día de hoy -->
+        <div class="col-md-4 anim-fade-in-up anim-delay-2">
+            <div class="card card-hover text-white border-0 shadow-sm rounded-3" style="background-color: #1e8e3e; height: 100%;">
+                <div class="card-body p-4">
+                    <h6 class="card-title fw-bold text-uppercase mb-3 opacity-75"><i class="bi bi-calendar-day-fill"></i> Citas Para Hoy</h6>
+                    <h1 class="display-3 fw-bold mb-0">{{ total_citas_hoy }}</h1>
+                    <!-- Desglose de cuántas pacientes ya pasaron y cuántas faltan -->
+                    <p class="mb-0 mt-2 fs-6">{{ pendientes_hoy }} pendientes, {{ atendidas_hoy }} atendidas</p>
+                </div>
+            </div>
+        </div>
+        <!-- Tarjeta Roja: Conteo de citas que no se concretaron -->
+        <div class="col-md-4 anim-fade-in-up anim-delay-3">
+            <div class="card card-hover border-0 shadow-sm text-white rounded-3" style="background-color: #dc3545; height: 100%;">
+                <div class="card-body p-4">
+                    <h6 class="card-title fw-bold text-uppercase mb-3 opacity-75"><i class="bi bi-calendar-x-fill"></i> Citas Canceladas</h6>
+                    <h1 class="display-3 fw-bold mb-0">{{ citas_canceladas }}</h1>
+                    <p class="mb-0 mt-2 fs-6">En nuestro historial histórico</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE PRÓXIMAS PACIENTES EN SALA DE ESPERA -->
+    <div class="card shadow-sm border-0 rounded-3 anim-fade-in-up anim-delay-3 mt-4">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-stethoscope text-primary me-2"></i> Próximos pacientes en sala de espera
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="text-muted" style="background-color: #f8f9fa;">
+                        <tr>
+                            <th class="ps-4 py-3 border-0">Hora</th>
+                            <th class="py-3 border-0">Paciente</th>
+                            <th class="py-3 border-0">Motivo de Visita</th>
+                            <th class="py-3 border-0">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Iteramos sobre las próximas 5 citas del día enviadas desde Python -->
+                        {% for cita in proximas_citas %}
+                        <tr>
+                            <!-- Formato de hora: 12 horas con AM/PM -->
+                            <td class="ps-4 py-3 fw-bold text-primary">{{ cita.hora_cita.strftime('%I:%M %p') }}</td>
+                            <!-- Accedemos al nombre del paciente relacionado por SQLAlchemy -->
+                            <td class="py-3 fw-bold text-dark">{{ cita.paciente_rel.nombres }} {{ cita.paciente_rel.apellidos }}</td>
+                            <td class="py-3 text-muted">{{ cita.motivo }}</td>
+                            <td class="py-3">
+                                <!-- Pintamos el badge de color dependiendo del estado de la cita -->
+                                {% if cita.estado == 'Pendiente' %}
+                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-2 fw-bold" style="background-color: #fef08a !important;">En espera</span>
+                                {% elif cita.estado == 'Atendida' %}
+                                    <span class="badge bg-success rounded-pill px-3 py-2 fw-bold" style="background-color: #4a9371 !important;">Atendida</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill px-3 py-2 fw-bold">{{ cita.estado }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <!-- Mensaje amigable si no hay pacientes agendados para hoy -->
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="bi bi-cup-hot fs-2 d-block mb-3 text-secondary opacity-50"></i>
+                                <span class="fs-5">No existen pacientes en sala de espera para el día de hoy.</span>
+                                <br><small>Tómete un respiro médico.</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white border-top text-end py-3 px-4">
+            <!-- Botón para ver todos los días de la agenda -->
+            <a href="/citas" class="btn btn-outline-primary btn-sm px-3 fw-bold">Ver agenda clínica completa</a>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6 anim-fade-in-up anim-delay-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-header bg-white border-bottom py-3 px-4">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-pie-chart-fill text-primary me-2"></i> Reporte Estadístico de Citas</h5>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                    <h2 class="display-5 fw-bold text-dark mb-0">{{ total_citas_general }}</h2>
+                    <p class="text-muted mb-3">Citas Generales Históricas</p>
+                    <div style="width: 300px; height: 300px;">
+                        <canvas id="citasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('citasChart');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Atendidas', 'Pendientes', 'Canceladas'],
+        datasets: [{
+          label: 'Total General de Citas',
+          data: [
+            parseInt("{{ citas_atendidas_general }}") || 0,
+            parseInt("{{ citas_pendientes_general }}") || 0,
+            parseInt("{{ citas_canceladas }}") || 0
+          ],
+          backgroundColor: [
+            '#1e8e3e',
+            '#fbbc04',
+            '#ea4335'
+          ],
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+         responsive: true,
+         maintainAspectRatio: false
+      }
+    });
+  });
+</script>
+{% endblock %}

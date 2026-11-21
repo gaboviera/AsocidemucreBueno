@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}Salidas y Reportes - Asocidemucre{% endblock %}
+
+{% block content %}
+<div class="container pb-5 anim-fade-in-up">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-success fw-bold"><i class="bi bi-bar-chart-line-fill"></i> Panel de Estadísticas y Salidas</h2>
+            <p class="text-muted">Métricas de rendimiento, resúmenes diagnósticos y estatus de citas médicas de la clínica.</p>
+        </div>
+        <div>
+            <!-- Botón estético simulando la generación de PDF del reporte general -->
+            <button class="btn btn-outline-danger shadow-sm" onclick="window.print()">
+                <i class="bi bi-file-earmark-pdf-fill"></i> Exportar a PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE KPIs SUPERIORES -->
+    <div class="row mb-5 g-3">
+        <div class="col-md">
+            <div class="card text-white bg-primary shadow-sm h-100 card-hover">
+                <div class="card-body text-center">
+                    <h1 class="display-5 fw-bold"><i class="bi bi-people-fill"></i> {{ total_pacientes }}</h1>
+                    <p class="card-text mb-0 small">Pacientes Activos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md">
+            <div class="card text-white bg-success shadow-sm h-100 card-hover">
+                <div class="card-body text-center">
+                    <h1 class="display-5 fw-bold"><i class="bi bi-calendar-check-fill"></i> {{ total_citas }}</h1>
+                    <p class="card-text mb-0 small">Citas Totales Agendadas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md">
+            <div class="card text-white bg-info shadow-sm h-100 card-hover">
+                <div class="card-body text-center">
+                    <h1 class="display-5 fw-bold"><i class="bi bi-calendar2-check"></i> {{ datos_estados.get('Atendida', 0) }}</h1>
+                    <p class="card-text mb-0 small">Citas Atendidas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md">
+            <div class="card text-dark bg-warning shadow-sm h-100 card-hover">
+                <div class="card-body text-center">
+                    <h1 class="display-5 fw-bold"><i class="bi bi-hourglass-split"></i> {{ datos_estados.get('Pendiente', 0) }}</h1>
+                    <p class="card-text mb-0 small">Citas Pendientes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md">
+            <div class="card text-white bg-danger shadow-sm h-100 card-hover">
+                <div class="card-body text-center">
+                    <h1 class="display-5 fw-bold"><i class="bi bi-x-circle"></i> {{ datos_estados.get('Cancelada', 0) }}</h1>
+                    <p class="card-text mb-0 small">Citas Canceladas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN DE GRÁFICOS (CHART.JS) -->
+    <div class="row g-4">
+        
+        <!-- Grafico 1: Estado de las citas (Doughnut) -->
+        <div class="col-md-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white pb-0 border-bottom-0">
+                    <h5 class="card-title fw-bold text-dark"><i class="bi bi-pie-chart-fill text-primary"></i> Efectividad de Citas (Estatus)</h5>
+                </div>
+                <div class="card-body d-flex justify-content-center align-items-center">
+                    <div style="width: 80%; max-height: 300px;">
+                        <canvas id="chartEstados"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grafico 2: Top Médicos (Barras Horizontales) -->
+        <div class="col-md-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white pb-0 border-bottom-0">
+                    <h5 class="card-title fw-bold text-dark"><i class="bi bi-person-badge text-success"></i> Médicos con más Carga (Top 5)</h5>
+                </div>
+                <div class="card-body">
+                    <div style="width: 100%; max-height: 300px;">
+                        <canvas id="chartMedicos"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grafico 3: Resumen General de KPIs (Barras Horizontales) -->
+        <div class="col-md-12">
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-white pb-0 border-bottom-0">
+                    <h5 class="card-title fw-bold text-dark"><i class="bi bi-bar-chart-steps text-info"></i> Resumen General de Métricas</h5>
+                </div>
+                <div class="card-body">
+                    <div style="width: 100%; max-height: 250px;">
+                        <canvas id="chartResumen"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grafico 4: Top Diagnósticos / Enfermedades (Barras) -->
+        <div class="col-md-12">
+            <div class="card shadow-sm mt-3">
+                <div class="card-header bg-white pb-0 border-bottom-0">
+                    <h5 class="card-title fw-bold text-dark"><i class="bi bi-virus text-danger"></i> Morbilidad: Diagnósticos Frecuentes CIE (Top 5)</h5>
+                </div>
+                <div class="card-body">
+                    <div style="width: 100%; max-height: 400px;">
+                        <canvas id="chartEnfermedades"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<!-- LIBRERÍA CHART.JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Configuración universal para lucir profesional
+    Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+    Chart.defaults.color = '#6c757d';
+
+    // ==========================================
+    // 1. GRÁFICO CÍRCULO: ESTADO DE CITAS
+    // ==========================================
+    const ctxEstados = document.getElementById('chartEstados').getContext('2d');
+    
+    // Jinja inyecta el JSON de Python
+    const labelsEstados = ['Atendida', 'Pendiente', 'Cancelada'];
+    const dataEstados = [
+        {{ datos_estados.get('Atendida', 0) }},
+        {{ datos_estados.get('Pendiente', 0) }},
+        {{ datos_estados.get('Cancelada', 0) }}
+    ];
+    
+    new Chart(ctxEstados, {
+        type: 'doughnut',
+        data: {
+            labels: labelsEstados,
+            datasets: [{
+                data: dataEstados,
+                backgroundColor: [
+                    '#198754', // Verde (Atendidas)
+                    '#ffc107', // Amarillo (Pendientes)
+                    '#dc3545'  // Rojo (Canceladas)
+                ],
+                borderWidth: 2,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+    // ==========================================
+    // 2. GRÁFICO BARRAS HORIZONTALES: TOP MÉDICOS
+    // ==========================================
+    const ctxMedicos = document.getElementById('chartMedicos').getContext('2d');
+    
+    // Procesamos la tupla inyectada por Jinja [(Nombre, Total), (Nombre, Total)...]
+    const dataTopMedicos = [
+        {% for row in top_medicos %}
+        { nombre: "{{ row[0] }}", total: {{ row[1] }} },
+        {% endfor %}
+    ];
+    
+    new Chart(ctxMedicos, {
+        type: 'bar',
+        data: {
+            labels: dataTopMedicos.map(d => d.nombre),
+            datasets: [{
+                label: 'Citas Asociadas',
+                data: dataTopMedicos.map(d => d.total),
+                backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                borderColor: 'rgba(13, 110, 253, 1)',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Barras Horizontales
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { beginAtZero: true, ticks: { precision: 0 } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // ==========================================
+    // 3. GRÁFICO BARRAS VERTICALES: ENFERMEDADES
+    // ==========================================
+    const ctxEnfermedades = document.getElementById('chartEnfermedades').getContext('2d');
+    
+    const dataTopEnfermedades = [
+        {% for row in top_enfermedades %}
+        { nombre: "{{ row[0]|truncate(35) }}", total: {{ row[1] }} },
+        {% endfor %}
+    ];
+
+    new Chart(ctxEnfermedades, {
+        type: 'bar',
+        data: {
+            labels: dataTopEnfermedades.map(d => d.nombre),
+            datasets: [{
+                label: 'Casos Diagnosticados',
+                data: dataTopEnfermedades.map(d => d.total),
+                backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // ==========================================
+    // 4. GRÁFICO BARRAS HORIZONTALES: RESUMEN GENERAL
+    // ==========================================
+    const ctxResumen = document.getElementById('chartResumen').getContext('2d');
+    
+    new Chart(ctxResumen, {
+        type: 'bar',
+        data: {
+            labels: ['Pacientes Activos', 'Citas Totales Agendadas', 'Citas Atendidas', 'Citas Pendientes', 'Citas Canceladas'],
+            datasets: [{
+                label: 'Cantidad',
+                data: [
+                    {{ total_pacientes }},
+                    {{ total_citas }},
+                    {{ datos_estados.get('Atendida', 0) }},
+                    {{ datos_estados.get('Pendiente', 0) }},
+                    {{ datos_estados.get('Cancelada', 0) }}
+                ],
+                backgroundColor: [
+                    'rgba(13, 110, 253, 0.8)', // primary
+                    'rgba(25, 135, 84, 0.8)', // success
+                    'rgba(13, 202, 240, 0.8)', // info
+                    'rgba(255, 193, 7, 0.8)', // warning
+                    'rgba(220, 53, 69, 0.8)'  // danger
+                ],
+                borderWidth: 0,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Barras Horizontales
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { beginAtZero: true, ticks: { precision: 0 } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,236 @@
+{% extends 'base.html' %} <!-- Base general del sistema -->
+
+{% block title %}Agenda de Citas - Asocidemucre{% endblock %} <!-- Pestaña de navegador -->
+
+{% block content %}
+<style>
+    .custom-table-header th {
+        background-color: #f8f9fa !important;
+        color: #000 !important;
+    }
+</style>
+<div class="d-flex justify-content-between align-items-center mb-4 mt-4">
+    <h2>Agenda de Citas Médicas</h2>
+    <div>
+        <a href="/citas/reporte_pdf?q={{ query }}&estado={{ estado }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&medico_id={{ medico_id_filtro or '' }}" target="_blank" class="btn btn-outline-danger shadow-sm me-2 fw-bold">
+            <i class="bi bi-file-earmark-pdf-fill"></i> Exportar PDF
+        </a>
+        <!-- Botón para agendar una cita nueva (Color naranja de advertencia/atención) -->
+        <a href="/citas/nueva" class="btn btn-primary fw-bold d-inline-flex align-items-center">
+            <i class="bi bi-calendar-plus fs-5 me-2"></i> Agendar Cita
+        </a>
+    </div>
+</div>
+
+<!-- MENSAJES FLASHEADOS: Confirman si la cita se agendó o canceló correctamente -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<!-- BARRA DE BÚSQUEDA DE LA AGENDA (Novedad Fase 9) -->
+<div class="card shadow-sm border-0 mb-4 rounded-3">
+    <div class="card-body p-3">
+        <!-- Permite filtrar por paciente, médico o estado directamente -->
+        <form method="GET" action="/citas" class="row g-2">
+            <div class="col-md-3">
+                <input type="text" name="q" class="form-control" 
+                       placeholder="Buscar paciente o motivo..." 
+                       value="{{ query or '' }}">
+            </div>
+            <div class="col-md-2">
+                <div class="input-group">
+                    <span class="input-group-text bg-white text-muted small px-2">De</span>
+                    <input type="date" name="fecha_inicio" class="form-control text-muted px-1" value="{{ fecha_inicio or '' }}" title="Desde fecha">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="input-group">
+                    <span class="input-group-text bg-white text-muted small px-2">A</span>
+                    <input type="date" name="fecha_fin" class="form-control text-muted px-1" value="{{ fecha_fin or '' }}" title="Hasta fecha">
+                </div>
+            </div>
+            {% if session.get('rol') not in ['Medico', 'Médico'] %}
+            <div class="col-md-2">
+                <select name="medico_id" class="form-select">
+                    <option value="">-- Médico --</option>
+                    {% for doc in doctores %}
+                    <option value="{{ doc.id_empleado }}" {% if medico_id_filtro == doc.id_empleado %}selected{% endif %}>Dr. {{ doc.nombre_completo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-2">
+                <select name="estado" class="form-select">
+                    <option value="">-- Estado --</option>
+                    <option value="Pendiente" {% if estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                    <option value="Atendida" {% if estado == 'Atendida' %}selected{% endif %}>Atendida</option>
+                    <option value="Cancelada" {% if estado == 'Cancelada' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <!-- Botón de ejecución -->
+            <div class="col-md-1 d-grid">
+                <button type="submit" class="btn btn-secondary fw-bold" style="height: 100%; padding-left: 0; padding-right: 0;" title="Buscar">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- LEYENDA DEL FILTRO ACTIVO -->
+{% if query or fecha_inicio or fecha_fin or medico_id_filtro or estado %}
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <span class="text-muted small">Mostrando resultados para: 
+        {% if query %}<strong>"{{ query }}"</strong>{% endif %}
+        {% if fecha_inicio or fecha_fin %} Fecha: <strong>{{ fecha_inicio }} - {{ fecha_fin }}</strong>{% endif %}
+        {% if medico_id_filtro %} Médico ID: <strong>{{ medico_id_filtro }}</strong>{% endif %}
+        {% if estado %} Estado: <strong>{{ estado }}</strong>{% endif %}
+    </span>
+    <!-- Botón para ver toda la agenda sin filtros -->
+    <a href="/citas" class="btn btn-sm btn-outline-danger px-3 rounded-pill py-0">Limpiar Filtros</a>
+</div>
+{% endif %}
+
+<!-- TABLA DE LA AGENDA MÉDICA -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="custom-table-header">
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>Cédula</th>
+                        <th>Paciente</th>
+                        <th>Médico Tratante</th>
+                        <th>Motivo de Consulta</th>
+                        <th>Estado de Cita</th>
+                        <th class="text-end">Operaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Iteramos sobre las citas filtradas o totales (paginadas) -->
+                    {% for cita in citas.items %}
+                    <tr class="{% if cita.estado == 'Cancelada' %}opacity-50 text-decoration-line-through table-light{% endif %}">
+                        <td><strong>{{ cita.fecha_cita.strftime('%d/%m/%Y') }}</strong> <br> <small class="text-muted">{{
+                                cita.hora_cita.strftime('%H:%M') }}</small></td>
+                        <td>{{ cita.pacientes_cedula }}</td>
+                        <!-- Gracias a SQLAlchemy, accedemos al objeto 'paciente' directamente desde la cita -->
+                        <td>{{ cita.paciente_rel.nombres }} {{ cita.paciente_rel.apellidos }}</td>
+                        <!-- También accedemos al objeto 'empleado' (médico) relacionado -->
+                        <td>Dr/a. {{ cita.medico_asignado.nombre_completo }}</td>
+                        <td>{{ cita.motivo }}</td>
+                        <td>
+                            <!-- Definimos colores según el estado: Amarillo (Pendiente), Verde (Atendida), Rojo (Otras) -->
+                            <span
+                                class="badge {% if cita.estado == 'Pendiente' %}bg-warning text-dark{% elif cita.estado == 'Atendida' %}bg-success{% else %}bg-danger{% endif %}"
+                                {% if cita.estado == 'Pendiente' %}style="background-color: #fef08a !important;"{% elif cita.estado == 'Atendida' %}style="background-color: #4a9371 !important;"{% endif %}>
+                                {{ cita.estado }}
+                            </span>
+                            {% if cita.estado == 'Cancelada' and cita.motivo_cancelacion %}
+                            <div class="small text-danger mt-1 fw-bold" style="max-width: 200px; white-space: normal; line-height: 1.2;">
+                                <i class="bi bi-chat-left-quote"></i> "{{ cita.motivo_cancelacion }}"
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if cita.estado != 'Cancelada' %}
+                                <!-- ACCIÓN: Atender Cita (Manda al expediente) -->
+                                {% if cita.estado == 'Pendiente' %}
+                                <a href="/citas/{{ cita.id_cita }}/atender" class="btn btn-sm btn-success fw-bold" style="background-color: #4a9371 !important; border-color: #4a9371 !important;" title="Inscribir acto médico">
+                                    🩺 Atender
+                                </a>
+                                {% endif %}
+                                
+                                <!-- ACCIÓN: Editar Cita -->
+                                <a href="/citas/editar/{{ cita.id_cita }}" class="btn btn-sm btn-outline-secondary" title="Editar">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                
+                                <!-- ACCIÓN: Cancelar la cita (Soft Delete) -->
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-cancelar-cita" 
+                                        data-id="{{ cita.id_cita }}" title="Cancelar Cita">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            {% else %}
+                                <span class="text-muted small fst-italic">Cita Anulada</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <!-- MENSAJE SI NO HAY CITAS ENCONTRADAS -->
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5 px-3">
+                            {% if query %}
+                                <i class="bi bi-calendar-x fs-2 d-block mb-2"></i>
+                                Lo sentimos, no hay citas agendadas con el criterio: <strong>"{{ query }}"</strong>.
+                            {% else %}
+                                <i class="bi bi-calendar-event fs-2 d-block mb-2"></i>
+                                Actualmente la agenda está vacía. Selecciona "Agendar Cita".
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Controles de Paginación -->
+        {% with pagination=citas %}
+            {% include '_paginacion.html' %}
+        {% endwith %}
+        
+    </div>
+</div>
+
+<!-- Modal de Confirmación de Cancelación -->
+<div class="modal fade" id="modalCancelar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Confirmar Cancelación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formCancelarCita" method="POST" action="">
+                <div class="modal-body py-4">
+                    <div class="text-center mb-3">
+                        <i class="bi bi-calendar-x text-danger" style="font-size: 3rem;"></i>
+                        <p class="mt-3 fs-5">¿Está seguro de que desea <strong>cancelar</strong> esta cita médica?</p>
+                    </div>
+                    <div class="mb-3 text-start">
+                        <label for="motivo_cancelacion_agenda" class="form-label fw-bold">Motivo de Cancelación:</label>
+                        <textarea class="form-control" id="motivo_cancelacion_agenda" name="motivo_cancelacion" rows="3" required placeholder="Ej. El paciente llamó para suspender, no asistió..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">No, volver</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">
+                        <i class="bi bi-trash"></i> Sí, cancelar cita
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = new bootstrap.Modal(document.getElementById('modalCancelar'));
+        const formConfirmar = document.getElementById('formCancelarCita');
+        
+        document.querySelectorAll('.btn-cancelar-cita').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const citaId = this.getAttribute('data-id');
+                formConfirmar.action = '/citas/eliminar/' + citaId;
+                modal.show();
+            });
+        });
+    });
+</script>
+{% endblock %}

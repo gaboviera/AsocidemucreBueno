@@ -1,0 +1,30 @@
+# Variables de Entorno
+.env
+.env.*
+!.env.template
+
+# Base de Datos y Respaldos (Alta Sensibilidad)
+*.sql
+*.sqlite3
+*.db
+Asosidemucre.sql
+postgres_data/
+
+# Entornos Virtuales
+.venv/
+venv/
+env/
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE y Editores
+.vscode/
+.idea/
+.obsidian/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

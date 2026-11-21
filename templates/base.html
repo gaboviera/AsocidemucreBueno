@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es"> <!-- Definimos el idioma español para el navegador -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bloque de título: permite que cada página hija (como pacientes) ponga su propio nombre arriba -->
+    <title>{% block title %}Asocidemucre{% endblock %}</title>
+    
+    <!-- DISEÑO VISUAL: Cargamos Bootstrap 5 para que todo se vea moderno y profesional -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- ICONOS: Cargamos Bootstrap Icons para poner los dibujitos de personas, corazones, etc. -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <style>
+        /* --- ANIMACIONES DE ENTRADA (Fase 7: Pulido Visual) --- */
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .anim-fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+        /* Retrasos para que los elementos aparezcan uno tras otro (efecto cascada) */
+        .anim-delay-1 { animation-delay: 0.1s; }
+        .anim-delay-2 { animation-delay: 0.2s; }
+        .anim-delay-3 { animation-delay: 0.3s; }
+        
+        /* --- EFECTOS AL PASAR EL MOUSE (Hover VIP) --- */
+        .card-hover:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        }
+        
+        /* --- NAVBAR MEJORADA (Más visible y amigable) --- */
+        .navbar-dark {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        .navbar-dark .nav-link {
+            color: rgba(255, 255, 255, 0.95) !important;
+            font-weight: 500;
+            font-size: 1.05rem;
+            padding: 0.6rem 1rem !important;
+            margin: 0 0.2rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .navbar-dark .nav-link:hover, .navbar-dark .nav-link:focus {
+            color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .navbar-dark .navbar-brand {
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+
+<body class="bg-light"> <!-- Fondo gris clarito para resaltar las tarjetas blancas -->
+    
+    {% if session.get('id_usuario') %}
+    {% if session.get('rol') == 'Paciente' %}
+    <!-- BARRA DE NAVEGACIÓN PARA PACIENTES LOGUEADOS -->
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm mb-4" style="background-color: #0d6efd;">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/mi_historial">
+                <i class="bi bi-person-heart"></i>
+                Portal Paciente
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navPaciente" aria-controls="navPaciente" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navPaciente">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="/mi_historial"><i class="bi bi-journal-medical"></i> Mi Historial</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="/cita_publica"><i class="bi bi-calendar-plus"></i> Agendar Nueva Cita</a>
+                    </li>
+                </ul>
+                <div class="text-white d-flex align-items-center">
+                    <span class="me-3 small text-opacity-75">Hola, <strong>{{ session.nombre }}</strong></span>
+                    <a href="/logout" class="btn btn-sm btn-outline-light rounded-pill px-3">Cerrar Sesión</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% else %}
+    <!-- BARRA DE NAVEGACIÓN PARA PERSONAL MÉDICO -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container">
+            <!-- Logo principal con link al tablero/dashboard -->
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="/dashboard">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" width="40" height="40" class="me-2 rounded shadow-sm" style="object-fit: cover;">
+                Asocidemucre
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMedico" aria-controls="navMedico" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Menú de opciones de navegación -->
+            <div class="collapse navbar-collapse" id="navMedico">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/pacientes"><i class="bi bi-people"></i> Módulo Pacientes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/citas"><i class="bi bi-calendar-check"></i> Citas Médicas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/personal"><i class="bi bi-person-vcard"></i> Personal Clínico</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-success fw-bold" href="/reportes"><i class="bi bi-bar-chart-line-fill"></i> Estadísticas y Reportes</a>
+                    </li>
+                    
+                    <!-- Catálogos Médicos (Solo visibles por sesión) -->
+                    <li class="nav-item dropdown">
+                      <a class="nav-link dropdown-toggle" href="#" id="navbarCatalogo" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-sliders"></i> Panel de Configuración
+                      </a>
+                      <ul class="dropdown-menu shadow">
+                        <li><a class="dropdown-item" href="/enfermedades"><i class="bi bi-journal-medical text-danger"></i> Enfermedades</a></li>
+                        <li><a class="dropdown-item" href="/medicamentos"><i class="bi bi-capsule text-primary"></i> Medicamentos</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/especialidades"><i class="bi bi-diagram-3 text-info"></i> Departamentos Técnicos</a></li>
+                        {% if session.rol in ['Medico', 'Médico', 'Administrador', 'Administradora'] %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item fw-bold" href="/mis_horarios"><i class="bi bi-clock-history text-success"></i> Mis Horarios y Cupos</a></li>
+                        {% endif %}
+                        {% if session.rol in ['Administrador', 'Administradora'] %}
+                        <li><a class="dropdown-item fw-bold text-primary" href="/admin/asignar_horario"><i class="bi bi-calendar-range"></i> Asignar Horarios a Médicos</a></li>
+                        {% endif %}
+                      </ul>
+                    </li>
+                    
+                    <!-- Solo el Administrador puede ver este botón extra de registro -->
+                    {% if session.rol in ['Administrador', 'Administradora'] %}
+                    <li class="nav-item ms-3">
+                        <a class="nav-link text-warning fw-bold" href="/registro"><i class="bi bi-person-badge-fill"></i> Registrar Personal</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- Info del Usuario logueado a la derecha -->
+                <div class="text-white d-flex align-items-center">
+                    <span class="me-3 small text-opacity-75">Bienvenido/a: <strong>{{ session.nombre }}</strong> <span class="badge bg-white text-primary ms-1">{{ session.rol }}</span></span>
+                    <a href="/logout" class="btn btn-sm btn-outline-light rounded-pill px-3">Cerrar Sesión</a>
+                </div>
+            </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    {% else %}
+    <!-- BARRA DE NAVEGACIÓN PÚBLICA (Para pacientes sin sesión) -->
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm mb-4" style="background-color: #0d6efd;">
+        <div class="container">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" width="40" height="40" class="me-2 rounded shadow-sm" style="object-fit: cover;">
+                Asocidemucre
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navPublico" aria-controls="navPublico" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navPublico">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/cita_publica"><i class="bi bi-calendar-plus"></i> Agendar Cita</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/registro_paciente"><i class="bi bi-person-plus"></i> Crear Cuenta Paciente</a>
+                    </li>
+                </ul>
+                <a href="/login" class="btn btn-sm btn-outline-light rounded-pill px-3">
+                    <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                </a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- ESPACIO DINÁMICO: Aquí se "inyecta" el contenido de cada página hija -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- PIE DE PÁGINA (Footer) -->
+    <footer class="text-center text-muted py-4 mt-5">
+        <hr class="w-25 mx-auto mb-4">
+        <small>&copy; 2024-2026 Asocidemucre - Sistema de Gestión de Citas Médicas Especializadas (Ginecología)</small>
+    </footer>
+
+    <!-- LÓGICA DE BOOTSTRAP: Para que funcionen los menús, botones de cerrar y alertas -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

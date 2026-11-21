@@ -1,0 +1,29 @@
+{% extends 'base.html' %} <!-- Hereda el diseño base (cabecera y pie) -->
+
+{% block title %}Página no encontrada - 404{% endblock %} <!-- Título de la pestaña -->
+
+{% block content %}
+<!-- Contenedor centrado vertical y horizontalmente para mostrar el error -->
+<div class="container d-flex flex-column justify-content-center align-items-center vh-100 text-center">
+    
+    <!-- Icono de Brújula (Indica extravío) -->
+    <i class="bi bi-compass text-danger mb-4" style="font-size: 6rem; opacity: 0.8;"></i>
+
+    <!-- El código de error en grande -->
+    <h1 class="display-1 fw-bold text-dark">404</h1>
+    
+    <!-- Mensaje amigable para el usuario -->
+    <h3 class="mb-4 text-secondary">Ups, ¡Alguien se perdió en los pasillos!</h3>
+    
+    <!-- Explicación de por qué pudo ocurrir el error -->
+    <p class="fs-5 text-muted mb-5 w-50">
+        La página o el expediente que estás buscando no existe, ha sido movido a otro archivo, o quizá anotaste mal la
+        dirección.
+    </p>
+
+    <!-- Botón con estilo "Pill" (redondeado) para regresar al tablero principal -->
+    <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm fw-bold">
+        <i class="bi bi-house-door-fill me-2"></i> Volver al Panel Principal
+    </a>
+</div>
+{% endblock %}

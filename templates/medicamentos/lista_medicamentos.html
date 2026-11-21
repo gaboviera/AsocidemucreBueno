@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% block title %}Vademécum - Asocidemucre{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-capsule text-primary"></i> Catálogo de Medicamentos</h2>
+    {% if session.rol in ['Administrador', 'Administradora', 'Medico', 'Médico'] %}
+    <button class="btn btn-primary d-inline-flex align-items-center" type="button" data-bs-toggle="modal" data-bs-target="#modalMedicamento">
+        <i class="bi bi-plus-circle fs-5 me-2"></i> Nuevo Fármaco
+    </button>
+    {% endif %}
+</div>
+
+<!-- MENSAJES DE ÉXITO -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- BARRA DE BÚSQUEDA DE MEDICAMENTOS -->
+<div class="card shadow-sm border-0 mb-4 rounded-3">
+    <div class="card-body p-3">
+        <form method="GET" action="/medicamentos" class="row g-3">
+            <div class="col-md-10">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0" name="q" placeholder="Buscar por nombre, compuesto o presentación..." value="{{ request.args.get('q', '') }}">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-secondary w-100 fw-bold d-inline-flex align-items-center justify-content-center" style="height: 100%;">
+                    <i class="bi bi-search me-2"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        {% if registros %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>N° Comercial</th>
+                        <th>Principio Activo</th>
+                        <th>Presentación Física</th>
+                        {% if session.rol in ['Administrador', 'Administradora', 'Medico', 'Médico'] %}
+                        <th class="text-center">Acciones</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for med in registros.items %}
+                    <tr>
+                        <td class="fw-bold">{{ med.nombre_comercial }}</td>
+                        <td>{{ med.compuesto }}</td>
+                        <td><span class="badge bg-secondary">{{ med.presentacion }}</span></td>
+                        {% if session.rol in ['Administrador', 'Administradora', 'Medico', 'Médico'] %}
+                        <td class="text-center">
+                            {% if session.rol in ['Administrador', 'Administradora', 'Medico', 'Médico'] %}
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditarMed{{ med.id_medicamento }}"><i class="bi bi-pencil"></i></button>
+                            {% endif %}
+                            {% if session.rol in ['Administrador', 'Administradora'] %}
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminarMed{{ med.id_medicamento }}"><i class="bi bi-trash"></i></button>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Controles de Paginación -->
+        {% with pagination=registros %}
+            {% include '_paginacion.html' %}
+        {% endwith %}
+        
+        <!-- Modales de Edición y Eliminación (Renderizados fuera de la tabla) -->
+        {% for med in registros.items %}
+        
+        {% if session.rol in ['Administrador', 'Administradora', 'Medico', 'Médico'] %}
+        <!-- Modal Editar -->
+        <div class="modal fade" id="modalEditarMed{{ med.id_medicamento }}" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form method="POST" action="/medicamento/editar/{{ med.id_medicamento }}">
+                  {{ form.hidden_tag() if form else '' }}
+                  <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Editar Medicamento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                      <div class="mb-3">
+                          <label class="form-label fw-bold">Nombre Comercial</label>
+                          <input type="text" name="nombre" class="form-control" value="{{ med.nombre_comercial }}" required>
+                      </div>
+                      <div class="mb-3">
+                          <label class="form-label">Principio Activo</label>
+                          <input type="text" name="compuesto" class="form-control" value="{{ med.compuesto }}" required>
+                      </div>
+                      <div class="mb-3">
+                          <label class="form-label">Presentación Física</label>
+                          <input type="text" name="presentacion" class="form-control" value="{{ med.presentacion }}" required>
+                      </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                  </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        {% if session.rol in ['Administrador', 'Administradora'] %}
+        <!-- Modal Eliminar -->
+        <div class="modal fade" id="modalEliminarMed{{ med.id_medicamento }}" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form method="POST" action="/medicamento/eliminar/{{ med.id_medicamento }}">
+                  {{ form.hidden_tag() if form else '' }}
+                  <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body text-center py-4">
+                      <i class="bi bi-exclamation-triangle-fill text-warning fs-1 mb-3"></i>
+                      <p>¿Estás seguro que deseas eliminar el fármaco <strong>{{ med.nombre_comercial }}</strong>?</p>
+                      <p class="text-muted small">Esta acción lo marcará como inactivo (Soft Delete).</p>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                  </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        {% endfor %}
+        {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-inbox fs-1"></i>
+                <p class="mt-2">El inventario de farmacia está vacío.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Añadir -->
+{% if session.rol in ['Administrador', 'Administradora', 'Medico', 'Médico'] %}
+<div class="modal fade" id="modalMedicamento" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST">
+          {{ form.hidden_tag() }}
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">Registrar Medicamento</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+              <div class="mb-3">
+                  {{ form.nombre_comercial.label(class="form-label fw-bold") }}
+                  {{ form.nombre_comercial(class="form-control") }}
+              </div>
+              <div class="mb-3">
+                  {{ form.compuesto.label(class="form-label") }}
+                  {{ form.compuesto(class="form-control") }}
+              </div>
+              <div class="mb-3">
+                  {{ form.presentacion.label(class="form-label") }}
+                  {{ form.presentacion(class="form-control") }}
+              </div>
+          </div>
+          <div class="modal-footer">
+            {{ form.submit(class="btn btn-success w-100") }}
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

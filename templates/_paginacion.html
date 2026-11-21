@@ -1,0 +1,72 @@
+<!-- Componente de Paginación Reutilizable (Bootstrap 5) -->
+<!-- Recibe un objeto 'pagination' de Flask-SQLAlchemy -->
+
+{% if pagination and pagination.pages > 1 %}
+{% set query_args = request.args.to_dict() %}
+{% set _ = query_args.pop('page', None) %}
+
+<nav aria-label="Navegación de páginas" class="mt-4 mb-2">
+    <ul class="pagination justify-content-center pagination-sm">
+
+        <!-- Botón Anterior -->
+        {% if pagination.has_prev %}
+        <li class="page-item shadow-sm">
+            <!-- Se preservan los argumentos GET actuales (ej. ?q=búsqueda) sumando el page -->
+            <a class="page-link text-primary fw-bold"
+                href="{{ url_for(request.endpoint, page=pagination.prev_num, **query_args) }}">
+                <i class="bi bi-chevron-left"></i> Ant
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled shadow-sm">
+            <a class="page-link text-muted" href="#" tabindex="-1" aria-disabled="true">
+                <i class="bi bi-chevron-left"></i> Ant
+            </a>
+        </li>
+        {% endif %}
+
+        <!-- Números de Página Iterativos -->
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page_num %}
+        {% if pagination.page == page_num %}
+        <li class="page-item active shadow-sm" aria-current="page">
+            <span class="page-link fw-bold">{{ page_num }}</span>
+        </li>
+        {% else %}
+        <li class="page-item shadow-sm">
+            <a class="page-link text-dark" href="{{ url_for(request.endpoint, page=page_num, **query_args) }}">{{
+                page_num }}</a>
+        </li>
+        {% endif %}
+        {% else %}
+        <li class="page-item disabled shadow-sm">
+            <span class="page-link text-muted">...</span>
+        </li>
+        {% endif %}
+        {% endfor %}
+
+        <!-- Botón Siguiente -->
+        {% if pagination.has_next %}
+        <li class="page-item shadow-sm">
+            <a class="page-link text-primary fw-bold"
+                href="{{ url_for(request.endpoint, page=pagination.next_num, **query_args) }}">
+                Sig <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled shadow-sm">
+            <a class="page-link text-muted" href="#" tabindex="-1" aria-disabled="true">
+                Sig <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+
+    </ul>
+
+    <!-- Leyenda de Conteo Total -->
+    <div class="text-center mt-2 small text-muted">
+        Mostrando página <strong>{{ pagination.page }}</strong> de {{ pagination.pages }}. Total: {{ pagination.total }}
+        registros.
+    </div>
+</nav>
+{% endif %}

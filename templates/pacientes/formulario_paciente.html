@@ -1,0 +1,82 @@
+{% extends 'base.html' %} <!-- Reutilizamos la base -->
+
+{% block title %}{{ accion }} Paciente - Asocidemucre{% endblock %} <!-- El título cambia si es Nuevo o Editar -->
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <!-- Tarjeta para el formulario de pacientes -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white">
+                <!-- Mostramos dinámicamente si estamos "Registrando" o "Editando" -->
+                <h4 class="mb-0">{{ accion }} Datos del Paciente</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <!-- Token obligatorio para que Flask acepte el envío de datos -->
+                    {{ form.hidden_tag() }}
+
+                    <div class="row mb-3">
+                        <!-- Campo Cédula -->
+                        <div class="col-md-6">
+                            {{ form.cedula.label(class="form-label fw-bold") }}
+                            {{ form.cedula(class="form-control", placeholder="Ej. 1712345678") }}
+                            <!-- Mostramos errores de validación si el usuario escribió algo mal -->
+                            {% for error in form.cedula.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <!-- Campo Fecha de Nacimiento -->
+                        <div class="col-md-6">
+                            {{ form.fecha_nacimiento.label(class="form-label fw-bold") }}
+                            {{ form.fecha_nacimiento(class="form-control", type="date") }}
+                            {% for error in form.fecha_nacimiento.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <!-- Campo Nombres -->
+                        <div class="col-md-6">
+                            {{ form.nombres.label(class="form-label fw-bold") }}
+                            {{ form.nombres(class="form-control", placeholder="Ej. María Teresa") }}
+                            {% for error in form.nombres.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <!-- Campo Apellidos -->
+                        <div class="col-md-6">
+                            {{ form.apellidos.label(class="form-label fw-bold") }}
+                            {{ form.apellidos(class="form-control", placeholder="Ej. Gómez Silva") }}
+                            {% for error in form.apellidos.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Campo Teléfono -->
+                    <div class="mb-4">
+                        {{ form.telefono.label(class="form-label fw-bold") }}
+                        {{ form.telefono(class="form-control", placeholder="Ej. 0991234567") }}
+                        {% for error in form.telefono.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <!-- Botón de retorno al listado -->
+                        <a href="/pacientes" class="btn btn-secondary px-4 py-2 shadow-sm rounded-pill">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <!-- Botón de guardado -->
+                        {{ form.submit(class="btn btn-primary px-4 py-2 shadow-sm rounded-pill fw-bold") }}
+                    </div>
+                </form>
+                <!-- Fin del Formulario -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

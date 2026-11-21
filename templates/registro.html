@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Asocidemucre - Nuevo Ingreso{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <!-- Tarjeta para el formulario de registro -->
+            <div class="card shadow-sm border-0 mt-2">
+
+                <!-- Cabecera verde para diferenciarla del Login -->
+                <div class="card-header bg-success text-white text-center py-3">
+                    <h4 class="mb-0"><i class="bi bi-person-badge-fill"></i> Registrar Personal</h4>
+                    <small>Crear cuenta para Médico o Secretaria</small>
+                </div>
+
+                <div class="card-body p-4">
+
+                    <!-- MENSAJES DE ALERTA Y ERRORES -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            Por favor corrija los siguientes errores:
+                            <ul class="mb-0">
+                            {% for field_name, field_errors in form.errors.items() %}
+                                {% for error in field_errors %}
+                                    <li><strong>{{ form[field_name].label.text }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- EL FORMULARIO DE REGISTRO -->
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row">
+                            <!-- Campo Cédula -->
+                            <div class="col-md-6 mb-3">
+                                {{ form.cedula.label(class="form-label fw-bold") }}
+                                {{ form.cedula(class="form-control", placeholder="Ej: V-1234567") }}
+                            </div>
+
+                            <!-- Campo Nombre de Usuario -->
+                            <div class="col-md-6 mb-3">
+                                {{ form.username.label(class="form-label fw-bold") }}
+                                {{ form.username(class="form-control", placeholder="Nombre sin espacios") }}
+                            </div>
+                        </div>
+
+                        <!-- Campo Nombre Completo -->
+                        <div class="mb-3">
+                            {{ form.nombre_completo.label(class="form-label fw-bold") }}
+                            {{ form.nombre_completo(class="form-control", placeholder="Ej: Dra. María López") }}
+                        </div>
+
+                        <div class="row">
+                            <!-- Campo Rol -->
+                            <div class="col-md-4 mb-3">
+                                {{ form.rol.label(class="form-label fw-bold") }}
+                                {{ form.rol(class="form-control", placeholder="Medico / Secretaria") }}
+                            </div>
+
+                            <!-- Selección de la Especialidad Clínica -->
+                            <div class="col-md-8 mb-3">
+                                {{ form.especialidad_id.label(class="form-label fw-bold") }}
+                                {{ form.especialidad_id(class="form-select") }}
+                                <small class="text-muted d-block mt-1">¿Falta alguna? <a href="/especialidades" target="_blank" class="text-primary text-decoration-none"><i class="bi bi-plus-circle"></i> Agregar nueva especialidad</a></small>
+                            </div>
+                        </div>
+                        
+                        <!-- Campo Contraseña -->
+                        <div class="mb-4">
+                            {{ form.password.label(class="form-label text-danger fw-bold") }}
+                            {{ form.password(class="form-control", placeholder="Crea una contraseña segura") }}
+                        </div>
+
+                        <!-- Botón de Envío verde -->
+                        <div class="d-grid mt-2">
+                            {{ form.submit(class="btn btn-success btn-lg fw-bold") }}
+                        </div>
+
+                        <!-- Link para regresar -->
+                        <div class="text-center mt-3">
+                            <a href="/login" class="text-secondary text-decoration-none"><i class="bi bi-arrow-left"></i> Volver al Login</a>
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

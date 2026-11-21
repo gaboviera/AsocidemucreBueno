@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% block title %}Solicitar Cita Médica - Asocidemucre{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center anim-fade-in-up">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <!-- Encabezado con degradado premium -->
+            <div class="card-header bg-gradient bg-primary text-white py-4 text-center">
+                <h2 class="fw-bold mb-0"><i class="bi bi-calendar-heart"></i> Agenda tu Cita Médica</h2>
+                <p class="mb-0 opacity-75">Completa tus datos y selecciona tu especialista</p>
+            </div>
+            
+            <div class="card-body p-4 p-md-5">
+                
+                <!-- MENSAJES FLASH -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <form method="POST" id="formPublicoCita" class="needs-validation" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <h5 class="text-primary fw-bold mb-3 border-bottom pb-2">1. Tus Datos Personales</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            {{ form.cedula.label(class="form-label fw-semibold") }}
+                            {{ form.cedula(class="form-control", placeholder="Ej. 12345678") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.nombres.label(class="form-label fw-semibold") }}
+                            {{ form.nombres(class="form-control", placeholder="Tus nombres") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.apellidos.label(class="form-label fw-semibold") }}
+                            {{ form.apellidos(class="form-control", placeholder="Tus apellidos") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.telefono.label(class="form-label fw-semibold") }}
+                            {{ form.telefono(class="form-control", placeholder="0412-1234567") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.fecha_nacimiento.label(class="form-label fw-semibold") }}
+                            {{ form.fecha_nacimiento(class="form-control", type="date") }}
+                        </div>
+                    </div>
+
+                    <h5 class="text-primary fw-bold mb-3 border-bottom pb-2">2. Selección Médica</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            {{ form.especialidad_id.label(class="form-label fw-semibold") }}
+                            {{ form.especialidad_id(class="form-select", id="selectEspecialidad") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.doctor_id.label(class="form-label fw-semibold") }}
+                            {{ form.doctor_id(class="form-select", id="selectDoctor") }}
+                            
+                            <!-- Panel Informativo de Horarios (NUEVO) -->
+                            <div id="panelHorarioDoctor" class="mt-2 p-2 bg-light border border-info rounded text-dark d-none anim-fade-in-up" style="font-size: 0.85rem;">
+                                <strong><i class="bi bi-clock-history text-info"></i> Días de Atención:</strong>
+                                <ul id="listaHorarios" class="list-unstyled mb-0 ms-3 mt-1"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="text-primary fw-bold mb-3 border-bottom pb-2">3. Disponibilidad y Motivo</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            {{ form.fecha.label(class="form-label fw-semibold") }}
+                            {{ form.fecha(class="form-control", type="date") }}
+                            <div id="infoCuposDia" class="mt-1 small fw-bold d-none"></div>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.hora.label(class="form-label fw-semibold") }}
+                            {{ form.hora(class="form-control", type="time") }}
+                        </div>
+                        <div class="col-12">
+                            {{ form.motivo.label(class="form-label fw-semibold") }}
+                            {{ form.motivo(class="form-control", rows="3") }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        {{ form.submit(class="btn btn-primary btn-lg fw-bold rounded-pill shadow-sm") }}
+                        <a href="/" class="btn btn-link text-muted">Volver al inicio</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Flatpickr CSS & JS para restringir fechas y horas -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+
+<!-- Lógica de Filtrado Dinámico de Médicos y Horarios -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectEspecialidad = document.getElementById('selectEspecialidad');
+        const selectDoctor = document.getElementById('selectDoctor');
+        
+        // Guardamos todos los doctores inyectados por Flask ocultándolos en un string para el IDE
+        const doctoresString = `[
+            {% for doc in doctores %}
+            {"id": {{ doc.id_empleado }}, "nombre": "Dr/a. {{ doc.nombre_completo }}", "esp_id": {{ doc.especialidad_id or 0 }}}{{ "," if not loop.last else "" }}
+            {% endfor %}
+        ]`;
+        const todosLosDoctores = JSON.parse(doctoresString);
+        
+        // Cargar horarios inyectados
+        const horariosString = `[
+            {% for h in horarios %}
+            {"id_doc": {{ h.empleado_id }}, "dia": "{{ h.dia_semana }}", "inicio": "{{ h.hora_inicio.strftime('%H:%M') }}", "fin": "{{ h.hora_fin.strftime('%H:%M') }}", "cupos": {{ h.cupos_diarios }}}{{ "," if not loop.last else "" }}
+            {% endfor %}
+        ]`;
+        const todosLosHorarios = JSON.parse(horariosString);
+
+        // Cargar ocupación de citas futuras inyectada
+        const ocupacionString = '{{ ocupacion | default("{}") | tojson | safe }}';
+        let ocupacionDocs = {};
+        try { ocupacionDocs = JSON.parse(ocupacionString); } catch(e) {}
+
+        // Variables globales para la validación de fechas/horas
+        const inputFecha = document.getElementById('fecha');
+        const inputHora = document.getElementById('hora');
+        const infoCupos = document.getElementById('infoCuposDia');
+        const mapDias = { 0: 'Domingo', 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado' };
+        let horariosDelDocActual = [];
+        
+        // Inicializar Flatpickr para Fecha
+        const fpFecha = flatpickr(inputFecha, {
+            locale: "es",
+            minDate: "today",
+            disable: [
+                function(date) {
+                    if (horariosDelDocActual.length === 0) return true;
+                    const nombreDia = mapDias[date.getDay()];
+                    const disponible = horariosDelDocActual.some(h => h.dia === nombreDia);
+                    return !disponible; // Retorna true si se debe deshabilitar (no disponible)
+                }
+            ],
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length > 0) {
+                    const nombreDia = mapDias[selectedDates[0].getDay()];
+                    const horario = horariosDelDocActual.find(h => h.dia === nombreDia);
+                    if (horario) {
+                        const dateStrIso = flatpickr.formatDate(selectedDates[0], "Y-m-d");
+                        const docId = selectDoctor.value;
+                        const ocupadas = (ocupacionDocs[docId] && ocupacionDocs[docId][dateStrIso]) ? ocupacionDocs[docId][dateStrIso] : 0;
+                        const disponibles = horario.cupos - ocupadas;
+
+                        if (disponibles <= 0) {
+                            infoCupos.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> Sin cupos. Límite de ${horario.cupos} alcanzado.</span>`;
+                            infoCupos.classList.remove('d-none');
+                            inputHora.disabled = true;
+                            fpHora.clear();
+                        } else {
+                            infoCupos.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> Disponibles: ${disponibles} de ${horario.cupos} cupos</span>`;
+                            infoCupos.classList.remove('d-none');
+                            
+                            fpHora.set('minTime', horario.inicio);
+                            fpHora.set('maxTime', horario.fin);
+                            inputHora.disabled = false;
+                            inputHora.placeholder = `Entre ${horario.inicio} y ${horario.fin}`;
+                            
+                            if (fpHora.selectedDates.length > 0) {
+                                const horaSel = fpHora.selectedDates[0];
+                                const [minH, minM] = horario.inicio.split(':');
+                                const [maxH, maxM] = horario.fin.split(':');
+                                const minTime = new Date(horaSel); minTime.setHours(minH, minM, 0);
+                                const maxTime = new Date(horaSel); maxTime.setHours(maxH, maxM, 0);
+                                if (horaSel < minTime || horaSel > maxTime) {
+                                    fpHora.clear();
+                                }
+                            }
+                        }
+                    } else {
+                        infoCupos.classList.add('d-none');
+                        inputHora.disabled = true;
+                        fpHora.clear();
+                    }
+                } else {
+                    infoCupos.classList.add('d-none');
+                    inputHora.disabled = true;
+                    fpHora.clear();
+                }
+            }
+        });
+
+        // Inicializar Flatpickr para Hora
+        const fpHora = flatpickr(inputHora, {
+            enableTime: true,
+            noCalendar: true,
+            dateFormat: "H:i",
+            time_24hr: true
+        });
+
+        // Deshabilitar inputs hasta que elijan médico
+        inputFecha.disabled = true;
+        inputHora.disabled = true;
+
+        selectEspecialidad.addEventListener('change', function() {
+            const espId = parseInt(this.value);
+            
+            // Limpiar opciones actuales
+            selectDoctor.innerHTML = '<option value="0">-- Seleccione Especialista --</option>';
+            document.getElementById('panelHorarioDoctor').classList.add('d-none'); // Ocultar horario
+            infoCupos.classList.add('d-none');
+            horariosDelDocActual = [];
+            fpFecha.clear();
+            fpHora.clear();
+            inputFecha.disabled = true;
+            inputHora.disabled = true;
+            fpFecha.redraw();
+            
+            // Filtrar y añadir
+            const filtrados = espId === 0 ? [] : todosLosDoctores.filter(d => d.esp_id === espId);
+            
+            if(filtrados.length === 0 && espId !== 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "No hay médicos disponibles para esta área";
+                opt.disabled = true;
+                selectDoctor.appendChild(opt);
+            } else {
+                filtrados.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = d.nombre;
+                    selectDoctor.appendChild(opt);
+                });
+            }
+        });
+        
+        // Actualizar horarios al seleccionar un doctor
+        selectDoctor.addEventListener('change', function() {
+            const docId = parseInt(this.value);
+            const panel = document.getElementById('panelHorarioDoctor');
+            const lista = document.getElementById('listaHorarios');
+            
+            fpFecha.clear();
+            fpHora.clear();
+            
+            if (docId === 0 || isNaN(docId)) {
+                panel.classList.add('d-none');
+                infoCupos.classList.add('d-none');
+                horariosDelDocActual = [];
+                inputFecha.disabled = true;
+                inputHora.disabled = true;
+                fpFecha.redraw();
+                return;
+            }
+            
+            horariosDelDocActual = todosLosHorarios.filter(h => h.id_doc === docId);
+            
+            if (horariosDelDocActual.length === 0) {
+                lista.innerHTML = '<li class="text-danger"><i class="bi bi-exclamation-triangle"></i> El médico no tiene horarios configurados.</li>';
+                inputFecha.disabled = true;
+                inputHora.disabled = true;
+            } else {
+                lista.innerHTML = horariosDelDocActual.map(h => 
+                    `<li><i class="bi bi-check-circle text-success"></i> <strong>${h.dia}</strong>: ${h.inicio} a ${h.fin} <span class="text-muted">(Límite: ${h.cupos})</span></li>`
+                ).join('');
+                inputFecha.disabled = false; // Habilitar selector de fecha
+                inputFecha.placeholder = "Seleccione un día disponible";
+                inputHora.disabled = true; // Sigue deshabilitado hasta elegir fecha
+            }
+            
+            fpFecha.redraw();
+            panel.classList.remove('d-none');
+        });
+    });
+</script>
+{% endblock %}

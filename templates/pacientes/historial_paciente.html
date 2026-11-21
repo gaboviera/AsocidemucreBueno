@@ -1,0 +1,291 @@
+{% extends 'base.html' %} 
+
+{% block title %}Expediente - Asocidemucre{% endblock %} 
+
+{% block content %}
+<!-- El Formulario abarca toda la interfaz para no desarmar el z-index del Modal de medicamentos -->
+<form method="POST">
+    {{ form.hidden_tag() }}
+    
+    <div class="mt-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>
+                <i class="bi bi-file-earmark-medical text-primary"></i> 
+                Expediente Clínico: <span class="text-secondary fw-bold">{{ paciente.nombres }} {{ paciente.apellidos }}</span>
+            </h2>
+            <div class="d-flex gap-2">
+                {% if request.args.get('origen_cita_id') %}
+                <button type="submit" formnovalidate formaction="/citas/{{ request.args.get('origen_cita_id') }}/finalizar_rapido" class="btn btn-success shadow-sm" title="Marcar la cita como Atendida sin añadir una nueva nota médica">
+                    <i class="bi bi-check-all"></i> Finalizar Cita
+                </button>
+                <button type="button" class="btn btn-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCancelarCita" title="Cancelar esta cita">
+                    <i class="bi bi-x-circle"></i> Cancelar Cita
+                </button>
+                {% endif %}
+                <a href="/pacientes" class="btn btn-secondary shadow-sm"><i class="bi bi-arrow-return-left"></i> Volver</a>
+            </div>
+        </div>
+        <hr class="border-primary border-2 opacity-50">
+        <div class="text-muted d-flex gap-4">
+            <span><i class="bi bi-person-badge"></i> <strong>CI:</strong> {{ paciente.cedula }}</span>
+            <span><i class="bi bi-calendar2-heart"></i> <strong>Nacimiento:</strong> {{ paciente.fecha_nacimiento.strftime('%d/%m/%Y') }}</span>
+            <span><i class="bi bi-telephone"></i> <strong>Tel:</strong> {{ paciente.telefono or 'No registrado' }}</span>
+        </div>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="row">
+        <!-- COLUMNA IZQUIERDA: Formulario Triage y Evolución -->
+        <div class="col-md-5 mb-4">
+            <div class="card shadow-sm border-0 border-top border-primary border-4 sticky-top" style="top: 20px;">
+                <div class="card-body bg-light">
+                    <h5 class="card-title fw-bold mb-4 text-primary"><i class="bi bi-stethoscope"></i> Nueva Evolución Médica</h5>
+                    
+                    <!-- Fila de Signos Vitales -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            {{ form.presion_arterial.label(class="form-label text-muted small fw-bold") }}
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-activity"></i></span>
+                                {{ form.presion_arterial(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            {{ form.temperatura.label(class="form-label text-muted small fw-bold") }}
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-thermometer-half"></i></span>
+                                {{ form.temperatura(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Diagnóstico Principal -->
+                    <div class="mb-3">
+                        <datalist id="catalogo_cie_datalist">
+                            {% for cie in lista_cies %}
+                                <option value="{{ cie.nombre }}">{{ cie.codigo_cie }} - {{ cie.nombre }}</option>
+                            {% endfor %}
+                        </datalist>
+                        
+                        {{ form.diagnostico_libre.label(class="form-label text-muted small fw-bold") }}
+                        {{ form.diagnostico_libre(class="form-control border-danger text-dark shadow-sm") }}
+                        <small class="text-muted" style="font-size: 0.7rem;">Escribe libremente o busca en el Catálogo CIE-10</small>
+                    </div>
+
+                    <!-- Observaciones Libres -->
+                    <div class="mb-4">
+                        {{ form.observaciones.label(class="form-label text-muted small fw-bold") }}
+                        {{ form.observaciones(class="form-control shadow-sm border-primary") }}
+                        {% for error in form.observaciones.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-success w-100 mb-3" data-bs-toggle="modal" data-bs-target="#modalReceta">
+                        <i class="bi bi-file-medical"></i> Añadir Medicamentos (Receta)
+                    </button>
+
+                    {{ form.submit(class="btn btn-primary w-100 fw-bold shadow-sm py-2") }}
+                </div>
+            </div>
+        </div>
+
+    <!-- COLUMNA DERECHA: Listado Histórico Multidisciplinario -->
+    <div class="col-md-7">
+        
+        <!-- NUEVA TABLA: Historial de Diagnósticos -->
+        <h4 class="fw-bold mb-3 d-flex align-items-center gap-2">
+            <i class="bi bi-list-columns-reverse text-danger"></i> Tabla de Diagnósticos Clínicos
+        </h4>
+        <div class="table-responsive mb-4 shadow-sm rounded">
+            <table class="table table-bordered table-hover align-middle mb-0 bg-white">
+                <thead class="table-danger">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Médico Tratante</th>
+                        <th>Código CIE</th>
+                        <th>Enfermedad / Diagnóstico</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set ns = namespace(found=false) %}
+                    {% for nota in historial %}
+                        {% if nota.diagnosticos %}
+                            {% for diag in nota.diagnosticos %}
+                            {% set ns.found = true %}
+                            <tr>
+                                <td>{{ nota.fecha_registro.strftime('%d/%m/%Y') }}</td>
+                                <td>Dr. {{ nota.medico_tratante.nombre_completo }}</td>
+                                <td><span class="badge bg-danger">{{ diag.codigo_cie }}</span></td>
+                                <td>{{ diag.nombre }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if not ns.found %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No hay diagnósticos previos registrados para este paciente.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        <h4 class="fw-bold mb-3 mt-4 d-flex align-items-center gap-2">
+            <i class="bi bi-journal-album text-secondary"></i> Evoluciones y Consultas Previas
+        </h4>
+        
+        {% if historial %}
+            <div class="vstack gap-4">
+                {% for nota in historial %}
+                <div class="card shadow-sm border-0 bg-white">
+                    <div class="card-header bg-transparent border-bottom-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                        <span class="badge bg-primary rounded-pill"><i class="bi bi-clock"></i> {{ nota.fecha_registro.strftime('%d/%m/%Y - %H:%M') }}</span>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Panel de Datos Técnicos de la Nota -->
+                        <div class="row mb-3 gx-2">
+                            {% if nota.presion_arterial or nota.temperatura %}
+                            <div class="col-auto">
+                                <span class="badge bg-light text-dark border">
+                                    <i class="bi bi-activity text-danger"></i> TA: {{ nota.presion_arterial or '--/--' }}
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="badge bg-light text-dark border">
+                                    <i class="bi bi-thermometer text-warning"></i> Temp: {{ nota.temperatura or '--' }}°C
+                                </span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if nota.medico_tratante and nota.medico_tratante.especialidad_rel %}
+                            <div class="col-auto">
+                                <span class="badge bg-info text-dark shadow-sm border">
+                                    <i class="bi bi-diagram-3"></i> Dpto: {{ nota.medico_tratante.especialidad_rel.nombre }}
+                                </span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if nota.diagnosticos %}
+                            {% for diag in nota.diagnosticos %}
+                            <div class="col-auto">
+                                <span class="badge bg-danger shadow-sm">
+                                    <i class="bi bi-virus"></i> Diagnóstico: {{ diag.nombre }} (CIE: {{ diag.codigo_cie }})
+                                </span>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Desarrollo de la Consulta -->
+                        <p class="mb-2 text-dark lh-sm" style="white-space: pre-wrap; font-size: 0.95rem;">{{ nota.observaciones }}</p>
+                        
+                        <!-- Panel de Prescripciones Médicas Recetadas -->
+                        {% if nota.indicaciones %}
+                        <div class="mt-3 bg-light rounded p-3 border border-success border-opacity-25">
+                            <h6 class="fw-bold text-success mb-2"><i class="bi bi-magic"></i> Recetario Prescrito:</h6>
+                            <ul class="list-unstyled mb-0 small text-dark">
+                                {% for ind in nota.indicaciones %}
+                                <li class="mb-1">
+                                    <i class="bi bi-check2-circle text-success"></i> 
+                                    <strong>{{ ind.remedio.nombre_comercial }}</strong> ({{ ind.remedio.presentacion }}) <br>
+                                    <span class="ps-3 text-muted"><strong>Dosis indicativa:</strong> {{ ind.dosis }}</span>
+                                    {% if ind.duracion_dias %}<span class="text-muted">| <strong>Tiempo:</strong> {{ ind.duracion_dias }} días.</span>{% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-secondary text-center py-5 shadow-sm border-0">
+                <i class="bi bi-clipboard2-x fs-1 text-muted d-block mb-3"></i>
+                <h5 class="fw-bold">Sin Entradas Previas</h5>
+                <p class="mb-0 text-muted">Este paciente no tiene historial evolutivo. Usa el panel izquierdo para comenzar.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Funcional para Recetario y Formulario Anidado en el Root -->
+<div class="modal fade" id="modalReceta" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-clipboard2-pulse"></i> Indicaciones y Tratamiento</h5>
+      </div>
+      <div class="modal-body text-center py-4">
+          <i class="bi bi-capsule fs-1 text-success mb-3 d-block"></i>
+          <p class="text-muted">Las prescripciones se anexarán a esta consulta al pulsar "Guardar Evolución Médica".</p>
+          <hr>
+          
+          <datalist id="catalogo_meds_datalist">
+            {% for med in catalogo_meds %}
+                <option value="{{ med.nombre_comercial }}">{{ med.nombre_comercial }} ({{ med.presentacion }})</option>
+            {% endfor %}
+          </datalist>
+          
+          <div class="text-start">
+              {{ indicador_form.nombre_medicamento.label(class="fw-bold fs-6 mb-1 text-dark") }}
+              {{ indicador_form.nombre_medicamento(class="form-control border-success mb-3 shadow-sm") }}
+              
+              {{ indicador_form.dosis.label(class="fw-bold fs-6 mb-1 text-dark") }}
+              {{ indicador_form.dosis(class="form-control mb-3 shadow-sm") }}
+              
+              {{ indicador_form.duracion_dias.label(class="fw-bold fs-6 mb-1 text-dark") }}
+              {{ indicador_form.duracion_dias(class="form-control shadow-sm") }}
+          </div>
+      </div>
+      <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Preparar Receta y volver a la Consulta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</form>
+<!-- Mantenemos form en el wrapper master -->
+
+<!-- Modal para Cancelar Cita -->
+{% if request.args.get('origen_cita_id') %}
+<div class="modal fade" id="modalCancelarCita" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Cancelar Cita Médica</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/citas/eliminar/{{ request.args.get('origen_cita_id') }}" method="POST">
+          <div class="modal-body">
+              <p>¿Estás seguro de que deseas cancelar la cita actual?</p>
+              <div class="mb-3">
+                  <label for="motivo_cancelacion" class="form-label fw-bold">Motivo de Cancelación:</label>
+                  <textarea class="form-control" id="motivo_cancelacion" name="motivo_cancelacion" rows="3" required placeholder="Ej. El paciente no se presentó, problema de salud..."></textarea>
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+              <button type="submit" class="btn btn-danger">Confirmar Cancelación</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

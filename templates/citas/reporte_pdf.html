@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Citas - Asocidemucre</title>
+    <!-- Bootstrap para estilos rápidos -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fff;
+            color: #000;
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+        }
+        .header {
+            border-bottom: 2px solid #000;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 0;
+            font-size: 14px;
+            color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .badge {
+            font-size: 11px;
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+        /* Ocultar botones en la impresión */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print text-end mb-4">
+        <button class="btn btn-primary" onclick="window.print()">Imprimir / Guardar PDF</button>
+        <button class="btn btn-secondary" onclick="window.close()">Cerrar</button>
+    </div>
+
+    <div class="header d-flex justify-content-between align-items-end">
+        <div>
+            <h1>Reporte de Citas Médicas</h1>
+            <p>Clínica Asocidemucre</p>
+        </div>
+        <div class="text-end">
+            <p><strong>Fecha de Emisión:</strong> <span id="fecha-actual"></span></p>
+            <p><strong>Filtro:</strong> {% if estado %}{{ estado }}{% else %}Todos{% endif %} {% if query %} | Búsqueda: "{{ query }}"{% endif %}</p>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Fecha y Hora</th>
+                <th>Cédula</th>
+                <th>Paciente</th>
+                <th>Médico Tratante</th>
+                <th>Motivo de Consulta</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cita in citas %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ cita.fecha_cita.strftime('%d/%m/%Y') }} - {{ cita.hora_cita.strftime('%H:%M') }}</td>
+                <td>{{ cita.pacientes_cedula }}</td>
+                <td>{{ cita.paciente_rel.nombres }} {{ cita.paciente_rel.apellidos }}</td>
+                <td>Dr/a. {{ cita.medico_asignado.nombre_completo }}</td>
+                <td>{{ cita.motivo }}</td>
+                <td>{{ cita.estado }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center">No se encontraron citas para los criterios seleccionados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mt-4 pt-3 border-top text-end" style="font-size: 12px;">
+        <p><strong>Total de registros:</strong> {{ citas|length }}</p>
+    </div>
+
+    <script>
+        document.getElementById('fecha-actual').textContent = new Date().toLocaleDateString('es-ES');
+        // Ejecutar impresión automáticamente al cargar la página
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{% extends 'base.html' %} <!-- Hereda el diseño base -->
+
+{% block title %}Error de Sistemas - 500{% endblock %} <!-- Título de la pestaña -->
+
+{% block content %}
+<!-- Contenedor centrado para mostrar el problema del servidor -->
+<div class="container d-flex flex-column justify-content-center align-items-center vh-100 text-center">
+    
+    <!-- Icono de Servidor (Indica falla técnica de sistemas) -->
+    <i class="bi bi-hdd-network-fill text-warning mb-4" style="font-size: 6rem; opacity: 0.8;"></i>
+    
+    <!-- Código de error crítico del servidor -->
+    <h1 class="display-1 fw-bold text-dark">500</h1>
+    
+    <!-- Mensaje amigable para calmar al usuario -->
+    <h3 class="mb-4 text-secondary">¡Tuvimos un fallo interno en los sistemas!</h3>
+    
+    <!-- Explicación técnica para el usuario -->
+    <p class="fs-5 text-muted mb-5 w-50">
+        Nuestros servidores están experimentando dificultades mecánicas procesando tu última solicitud. No te preocupes, el director del hospital ya ha sido informado para arreglar esto cuanto antes.
+    </p>
+    
+    <!-- Botón naranja para reintentar la carga del Dashboard -->
+    <a href="{{ url_for('index') }}" class="btn btn-warning btn-lg rounded-pill px-5 shadow-sm fw-bold">
+        <i class="bi bi-arrow-counterclockwise me-2"></i> Intentar Nuevamente
+    </a>
+</div>
+{% endblock %}
